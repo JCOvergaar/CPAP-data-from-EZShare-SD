@@ -29,6 +29,13 @@ EZCard Setup & Usage
 ####################################################################################################
 By default, EzCard creates a wifi network named "Ez Card" with a password of 88888888 (that's eight eights)
 To change the network name and password, create or edit a file named ezshare.cfg on the card.
+You can also do it via the card's web interface: http://ezshare.card/config?vtype=0 (default card admin password is "admin").
+If necessary, deleting the ezshare.cfg file will change the network information back to the default.
 
 Create a directory named CPAP_Data in your Documents folder. (You can choose a different name, just edit it in the configuration.)
+
+Edit the configuration section of the .sh file as needed. 
+
+run the program from the command line:
+python3 transferCardData.py
 
