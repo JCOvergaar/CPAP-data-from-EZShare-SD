@@ -1,0 +1,26 @@
+Why did I do this?
+I got tired of taking my SD card out of my Airsense 11 every few days to import data into OSCAR, so I looked for an alternate option.
+
+The mainstream companies that created wifi SD cards discontinued them years ago and they are very expensive on the resale market.
+It looks like the only option still being made is the EzShare -- an inexpensive card/adapter intended for cameras, a knockoff of the EyeFi.
+
+Last year, I ran across a post from someone who had to use an EzShare SD card a few years ago. 
+They weren't successful with it, but they made enough progress that I was willing to try it out.
+
+This may only work with the newer models, which are white. I don't have the older orange card to test with.
+
+The EZShare is currently  made in two varieties -- one is an actual SD card (in various capacities) with wireless built in. 
+The other is an adapter for a microSD card. 
+
+I purchased a couple of the adapter versions for ~$20 each on Ali Express (item #2251832428648118), but you can get them from other places, too. 
+(I figure the adapter version with name brand memory purchased from a trusted seller might be more reliable than the ones with built in memory.)
+
+After a fair amount of messing around with the card, and the notes from the other fellow's abandoned attempt, I was able to put a shell script together that sort of worked late last year. 
+I played with it a bit but it wasn't very reliable and I shelved it.
+
+I need to learn Python for my new job, and I decided to dig it out as a project to familarize myself with the language while potentially creating something useful.
+
+I hope it works for you!
+
+PS - Feel free to fork this if you know the file structure for other high-quality CPAP/BiPAP devices that log meaningful data to the card.
+https://www.apneaboard.com/wiki/index.php?title=OSCAR_supported_machines
