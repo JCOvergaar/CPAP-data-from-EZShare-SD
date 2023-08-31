@@ -33,8 +33,8 @@
 # The default code (os.path.join etc) will place the file in the path below. 
 # You can change that in the config block
 # Windows:      C:\Users\MY_USERNAME\Documents\CPAP_Data
-# MacOS:        /home/MY_USERNAME/Documents/CPAP_Data
-# Linux et al:  /home/MY_USERNAME/Documents/CPAP_Data
+# MacOS:        /home/Users/MY_USERNAME/Documents/CPAP_Data
+# Linux et al:  /home/Users/MY_USERNAME/Documents/CPAP_Data (I think? No Linux box handy to verify)
 # You can store it wherever you want to, as long as OSCAR can read from it.
 # #################################################################################################
 
