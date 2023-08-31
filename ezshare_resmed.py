@@ -33,8 +33,8 @@
 # The default code (os.path.join etc) will place the file in the path below. 
 # You can change that in the config block
 # Windows:      C:\Users\MY_USERNAME\Documents\CPAP_Data
-# MacOS:        /home/Users/MY_USERNAME/Documents/CPAP_Data
-# Linux et al:  /home/Users/MY_USERNAME/Documents/CPAP_Data (I think? No Linux box handy to verify)
+# MacOS:        /Users/MY_USERNAME/Documents/CPAP_Data
+# Linux et al:  /home/MY_USERNAME/Documents/CPAP_Data (Ubuntu, Kali and other linux distros)
 # You can store it wherever you want to, as long as OSCAR can read from it.
 # #################################################################################################
 
@@ -67,6 +67,7 @@ from datetime import datetime, timedelta
 root_path = os.path.join(os.path.expanduser('~'), "Documents", "CPAP_Data", "SD_card")
 #root_path = 'C:\Users\USERNAME\Documents\CPAP_Data\SD_card'
 #root_path = '/home/USERNAME/Documents/CPAP_Data/SD_card'
+#root_path = '/Users/USERNAME/Documents/CPAP_Data/SD_card'
 # #################################################################################################
 
 # date filter options:
