@@ -62,6 +62,8 @@ from subprocess import run, PIPE
 import urllib.parse
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+import configparser
+
 ###################################################################################################
 
 # #################################################################################################
@@ -96,6 +98,40 @@ CONNECTION_ID = None
 # Typically shouldn't need to edit anything after this point
 # #################################################################################################
 root_url = 'http://192.168.4.1/dir?dir=A:'
+
+# #################################################################################################
+# Read from config file if it exists to overwrite defaults
+# #################################################################################################
+
+# Define possible paths for the config file
+config_files = [
+    'ezshare_resmed.ini',  # In the same directory as the script
+    os.path.join(os.path.expanduser('~'), '.config', 'ezshare_resmed.ini'),
+    os.path.join(os.path.expanduser('~'), '.config', 'ezshare_resmed', 'ezshare_resmed.ini'),
+    os.path.join(os.path.expanduser('~'), '.config', 'ezshare_resmed', 'config.ini')
+]
+
+# Iterate through possible paths and use the first one that exists
+config_path = None
+for file in config_files:
+    if os.path.exists(file):
+        config_path = file
+        break
+
+# If config file is found, read its contents
+if config_path:
+    # Create a configparser object and read the config file
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    # date filter options:
+    START_FROM = config.getint('ezshare_resmed', 'start_from', fallback=5)
+    SHOW_PROGRESS = config.get('ezshare_resmed', 'show_progress', fallback='Verbose')
+    OVERWRITE_EXISTING_FILES = config.getboolean('ezshare_resmed', 'overwrite', fallback=False)
+    CREATE_MISSING = config.getboolean('ezshare_resmed', 'create_missing', fallback=False)
+    EZSHARE_NETWORK = config.get('ezshare_resmed', 'sid', fallback='ezshare')
+    EZSHARE_PASSWORD = config.get('ezshare_resmed', 'psk', fallback='88888888')
+    root_path = config.get('ezshare_resmed', 'path', fallback=os.path.join(os.path.expanduser('~'), "Documents", "CPAP_Data", "SD_card"))
 
 # #################################################################################################
 # Allow command line arguments to overwrite defaults
