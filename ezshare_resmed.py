@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # #################################################################################################
 # This script allows you to easily use an inexpensive EZShare SD card or adapter in
 # your Resmed CPAP/BiPAP device and download the data from your CPAP/BiPAP device for
