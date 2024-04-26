@@ -77,6 +77,7 @@ START_FROM = 5  # Integer -- number of days to go back from the current date
 #START_FROM = "ALL"        # Option to start from the earliest date logged
 SHOW_PROGRESS = 'Verbose'  # Can be True, False, or 'Verbose'. Verbose provides considerably more feedback.
 OVERWRITE_EXISTING_FILES = False
+CREATE_MISSING = False
 
 ######################################################################################
 # WiFi Switching Configuration (Mac Only)
@@ -102,15 +103,22 @@ root_url = 'http://192.168.4.1/dir?dir=A:'
 parser = argparse.ArgumentParser(description='Your script description')
 parser.add_argument('--start_from', type=str, help='Start from date or number of days')
 parser.add_argument('--show_progress', choices=['True', 'False', 'Verbose'], help='Show progress level')
+parser.add_argument('--path', type=str, help=f'Set destination path. Defaults to {root_path}')
 parser.add_argument('--sid', type=str, help=f'Set network ssid. Defaults to {EZSHARE_NETWORK}')
 parser.add_argument('--psk', type=str, help=f'Set network pass phrase. Defaults to {EZSHARE_PASSWORD}')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite existing files')
+parser.add_argument('--create_missing', action='store_true', help='Create destination path if missing')
 args = parser.parse_args()
 
 if args.start_from:
     START_FROM = args.start_from
 if args.show_progress:
     SHOW_PROGRESS = args.show_progress
+if SHOW_PROGRESS.lower() == 'true':
+    SHOW_PROGRESS = True
+elif SHOW_PROGRESS.lower() == 'false':
+    SHOW_PROGRESS = False
+
 if args.path:
     root_path = args.path
 if args.sid:
@@ -120,12 +128,18 @@ if args.psk:
 
 if args.overwrite:
     OVERWRITE_EXISTING_FILES = True
+if args.create_missing:
+    CREATE_MISSING = True
 
 if not isinstance(START_FROM, (int, str)) or (isinstance(START_FROM, str) and START_FROM not in ["ALL", "20230819"]):
     print("Invalid value for START_FROM. It should be an integer, 'ALL', or a date in 'YYYYMMDD' format.")
     sys.exit(1)
     
 if SHOW_PROGRESS not in [True, False, 'Verbose']:
+    if not SHOW_PROGRESS:
+        print (False)
+    else:
+        print (f'SHOW:{SHOW_PROGRESS}:')
     print("Invalid value for SHOW_PROGRESS. It should be True, False, or 'Verbose'.")
     sys.exit(1)
 
@@ -231,6 +245,10 @@ def check_files(files,url,dir_path):
 
 def controller(url, dir_path): 
     files, dirs = get_files_and_dirs(url)
+
+    if not os.path.exists(dir_path) and CREATE_MISSING:
+        os.makedirs(dir_path)
+
     check_files(files, url, dir_path) # Skip file?
     check_dirs(dirs, url, dir_path) #skip folder?
 
