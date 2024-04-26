@@ -86,11 +86,10 @@ OVERWRITE_EXISTING_FILES = False
 ######################################################################################
 USE_NETWORK_SWITCHING = True
 
-#EZSHARE_NETWORK = "ezshare"
-#EZSHARE_PASSWORD = "88888888"
-EZSHARE_NETWORK = "airsense11"
-EZSHARE_PASSWORD = "5742104979"
+EZSHARE_NETWORK = "ezshare"
+EZSHARE_PASSWORD = "88888888"
 CONNECTION_DELAY = 5
+CONNECTION_ID = None
 
 # #################################################################################################
 # Typically shouldn't need to edit anything after this point
@@ -103,6 +102,8 @@ root_url = 'http://192.168.4.1/dir?dir=A:'
 parser = argparse.ArgumentParser(description='Your script description')
 parser.add_argument('--start_from', type=str, help='Start from date or number of days')
 parser.add_argument('--show_progress', choices=['True', 'False', 'Verbose'], help='Show progress level')
+parser.add_argument('--sid', type=str, help=f'Set network ssid. Defaults to {EZSHARE_NETWORK}')
+parser.add_argument('--psk', type=str, help=f'Set network pass phrase. Defaults to {EZSHARE_PASSWORD}')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite existing files')
 args = parser.parse_args()
 
@@ -110,6 +111,13 @@ if args.start_from:
     START_FROM = args.start_from
 if args.show_progress:
     SHOW_PROGRESS = args.show_progress
+if args.path:
+    root_path = args.path
+if args.sid:
+    EZSHARE_NETWORK = args.sid
+if args.psk:
+    EZSHARE_PASSWORD = args.psk
+
 if args.overwrite:
     OVERWRITE_EXISTING_FILES = True
 
@@ -233,16 +241,7 @@ def controller(url, dir_path):
 # Wifi Connect - If enabled, check OS, and if MacOS, switch wifi to the EZShare SSID
 # #################################################################################################
 def connect_to_wifi(ssid, password=None):
-    if platform.system() != 'Darwin':
-        response = input(f"""
-    Wifi connection is MacOS only. 
-    You appear to be running {platform.system()}. 
-    please connect manually and press 'C' and then 'Enter' to continue, or any other key and 'Enter' to cancel: """)
-        if response.lower() == 'c':
-            return True
-        else:
-            return False
-    else:
+    if platform.system() == 'Darwin':
         cmd = f'networksetup -setairportnetwork en0 {ssid}'
         if password:
             cmd += f' {password}'
@@ -250,30 +249,85 @@ def connect_to_wifi(ssid, password=None):
         result = run(cmd, shell=True, stdout=PIPE, stderr=PIPE)
 
         if result.returncode == 0:
-            print(f"Connected to {ssid} successfully.")
+            if SHOW_PROGRESS:
+                print(f"Connected to {ssid} successfully.")
             return True
         else:
             print(f"Failed to connect to {ssid}. Error: {result.stderr.decode('utf-8')}")
-            response = input("Unable to connect automatically, please connect manually and press 'C' to continue or any other key to cancel: ")
+            if sys.__stdin__.isatty():
+                response = input("Unable to connect automatically, please connect manually and press 'C' to continue or any other key to cancel: ")
+                if response.lower() == 'c':
+                    return True
+                else:
+                    return False
+            else:
+                return False
+    elif platform.system() == 'Linux' and platform.freedesktop_os_release()["VERSION_CODENAME"] == 'bookworm':
+        if password:
+            cmd = f'nmcli d wifi connect "{ssid}" password {password}'
+        else:
+            cmd = f'nmcli connection up "{ssid}"'
+
+        result = run(cmd, shell=True, capture_output=True, text=True, check=True)
+
+        if result.returncode == 0:
+            # Regular expression pattern to match the string after "activated with"
+            pattern = r"activated with '([^']*)'"
+
+            # Search for the pattern in the message
+            match = re.search(pattern, result.stdout)
+
+            if match:
+                global CONNECTION_ID
+                # Extract the string after "activated with"
+                CONNECTION_ID = match.group(1)
+
+            if SHOW_PROGRESS:
+                print(f"Connected to {ssid} successfully.")
+            return True
+        else:
+            print(f"Failed to connect to {ssid}. Error: {result.stderr.decode('utf-8')}")
+            if sys.__stdin__.isatty():
+                response = input("Unable to connect automatically, please connect manually and press 'C' to continue or any other key to cancel: ")
+                if response.lower() == 'c':
+                    return True
+                else:
+                    return False
+            else:
+                return False
+    else:
+        print(f'Wifi connection is not supported on this OS.')
+        print(f'You appear to be running {platform.system()}.')
+        if sys.__stdin__.isatty():
+            response = input(f"""Please connect manually and press 'C' and then 'Enter' to continue, or any other key and 'Enter' to cancel: """)
             if response.lower() == 'c':
                 return True
             else:
                 return False
+        else:
+
+            return False
 
 # #################################################################################################
 # WIFI Disconnect - Dropping the wifi interface briefly makes MacOS reconnect to the default SSID
 # #################################################################################################
 def disconnect_from_wifi():
-    # Turn off the Wi-Fi interface (en0)
-    run('networksetup -setairportpower en0 off', shell=True)
-    # Turn it back on
-    run('networksetup -setairportpower en0 on', shell=True)
-
+    if platform.system() == 'Darwin':
+        # Turn off the Wi-Fi interface (en0)
+        run('networksetup -setairportpower en0 off', shell=True)
+        # Turn it back on
+        run('networksetup -setairportpower en0 on', shell=True)
+    elif platform.system() == 'Linux' and platform.freedesktop_os_release()["VERSION_CODENAME"] == 'bookworm':
+        global CONNECTION_ID
+        if CONNECTION_ID:
+            cmd = f'nmcli connection down {CONNECTION_ID}'
+            result = run(cmd, shell=True, capture_output=True, text=True, check=True)
 # #################################################################################################
 # Execution Block
 # #################################################################################################
 if USE_NETWORK_SWITCHING:
-    print(f"Connecting to {EZSHARE_NETWORK}. Waiting a few seconds for connection to establish...")
+    if SHOW_PROGRESS:
+        print(f"Connecting to {EZSHARE_NETWORK}. Waiting a few seconds for connection to establish...")
     if connect_to_wifi(EZSHARE_NETWORK, EZSHARE_PASSWORD):
         time.sleep(CONNECTION_DELAY)
     else:
@@ -283,7 +337,8 @@ if USE_NETWORK_SWITCHING:
 controller(root_url, root_path)
 
 if USE_NETWORK_SWITCHING:
-    print(f"\nExiting {EZSHARE_NETWORK}. Waiting a few seconds for connection to establish...")
+    if SHOW_PROGRESS:
+        print(f"\nExiting {EZSHARE_NETWORK}. Waiting a few seconds for connection to establish...")
     disconnect_from_wifi()
     time.sleep(CONNECTION_DELAY)
 
