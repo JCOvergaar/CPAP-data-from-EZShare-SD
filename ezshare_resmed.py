@@ -63,6 +63,7 @@ import urllib.parse
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import configparser
+import re
 
 ###################################################################################################
 
@@ -205,29 +206,53 @@ def get_files_and_dirs(url):
     files = []
     dirs = []
 
-    for link in soup.find_all('a', href=True):
-        link_text = link.text.strip()
-        link_href = link['href']
+    pre_text = soup.find('pre').decode_contents()
+    lines = pre_text.split('\n')
 
-        if link_text in ['.', '..', 'back to photo'] or link_text.startswith('.'):
-            continue
+    for line in lines:
+        if line.strip():  # Skip empty line
+            parts = line.rsplit(maxsplit=2)
+            modifypart = parts[0].replace('- ', '-0').replace(': ', ':0')
+            regex_pattern = r'\d*-\d*-\d*\s*\d*:\d*:\d*'
 
-        if 'download?file' in link_href:
-            files.append((link_text, urllib.parse.urlparse(link_href).query))
-        elif 'dir?dir' in link_href:
-            dirs.append((link_text, link_href))
+            match = re.search(regex_pattern, modifypart)
+
+            if match:
+                modifytime = datetime.strptime(match.group(), '%Y-%m-%d   %H:%M:%S').timestamp()
+            else:
+                modifytime = None
+
+            soupline = BeautifulSoup(line, 'html.parser')
+            link = soupline.a
+            if link:
+                link_text = link.get_text(strip=True)
+                # Oscar expects STR.edf, not STR.EDF
+                if link_text == "STR.EDF":
+                    link_text = "STR.edf"
+
+                link_href = link['href']
+
+                if link_text in ['.', '..', 'back to photo', 'ezshare.cfg', 'JOURNAL.JNL'] or link_text.startswith('.'):
+                    continue
+
+                if 'download?file' in link_href:
+                    files.append((link_text, urllib.parse.urlparse(link_href).query, modifytime))
+                elif 'dir?dir' in link_href:
+                    dirs.append((link_text, link_href))
 
     return files, dirs
 
 # #################################################################################################
 # Grab a single file from the SD card. It retries 3x in case the wifi is spotty.
 # #################################################################################################
-def download_file(url, filename, retries=3):
+def download_file(url, filename, retries=3, modification_time=None):
     for attempt in range(retries):
         try:
             response = requests.get(url)
             with open(filename, 'wb') as file:
                 file.write(response.content)
+            if modification_time:
+                os.utime(filename, (modification_time, modification_time))
             return  # Successful download, exit the function
         except requests.exceptions.RequestException as e:
             if attempt < retries - 1:
@@ -255,7 +280,7 @@ def check_dirs(dirs, url, dir_path):
 # Determine if files should be downloaded or skipped
 # #################################################################################################
 def check_files(files,url,dir_path):
-    for filename, file_url in files:
+    for filename, file_url, file_date in files:
         local_path = os.path.join(dir_path, filename)
         absolute_file_url = urllib.parse.urljoin(url, f'download?{file_url}')
 
@@ -265,7 +290,7 @@ def check_files(files,url,dir_path):
                 print(f'{filename} skipped')
             continue
 
-        download_file(absolute_file_url, local_path)
+        download_file(absolute_file_url, local_path, modification_time=file_date)
 
         if 'DATALOG' in dir_path and os.path.exists(local_path) and OVERWRITE_EXISTING_FILES and SHOW_PROGRESS == 'Verbose':
             print(f'{filename} replaced')
