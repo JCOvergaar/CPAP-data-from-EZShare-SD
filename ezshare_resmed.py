@@ -171,7 +171,7 @@ if args.create_missing:
 if not isinstance(START_FROM, (int, str)) or (isinstance(START_FROM, str) and START_FROM not in ["ALL", "20230819"]):
     print("Invalid value for START_FROM. It should be an integer, 'ALL', or a date in 'YYYYMMDD' format.")
     sys.exit(1)
-    
+
 if SHOW_PROGRESS not in [True, False, 'Verbose']:
     if not SHOW_PROGRESS:
         print (False)
@@ -248,9 +248,15 @@ def get_files_and_dirs(url):
 def download_file(url, filename, retries=3, modification_time=None):
     for attempt in range(retries):
         try:
-            response = requests.get(url)
-            with open(filename, 'wb') as file:
-                file.write(response.content)
+            mtime = 0
+            if os.path.isfile(filename):
+                mtime = os.path.getmtime(filename)
+            if OVERWRITE_EXISTING_FILES or mtime <= modification_time:
+                response = requests.get(url)
+                with open(filename, 'wb') as file:
+                    file.write(response.content)
+            else:
+                print(f"WARNING: Skipping {filename}")
             if modification_time:
                 os.utime(filename, (modification_time, modification_time))
             return  # Successful download, exit the function
@@ -347,7 +353,12 @@ def connect_to_wifi(ssid, password=None):
         else:
             cmd = f'nmcli connection up "{ssid}"'
 
-        result = run(cmd, shell=True, capture_output=True, text=True, check=True)
+        for attempt in range(3):
+            try:
+                result = run(cmd, shell=True, capture_output=True, text=True, check=True)
+                break
+            except requests.exceptions.RequestException as e:
+                time.sleep(1) # Wait a second before retrying
 
         if result.returncode == 0:
             # Regular expression pattern to match the string after "activated with"
