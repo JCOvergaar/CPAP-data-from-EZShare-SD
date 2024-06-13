@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+check_venv() {
+    local env_name=${1:-".venv"}
+
+    if [ -d "$env_name" ]; then
+        true
+    else
+        false
+    fi
+}
+
+venv_name=~/.venv/ezshare_resmed
+if  ! check_venv $venv_name ; then
+    echo "$venv_name is not present. Run ./install.sh to setup environment"
+fi
+source "$venv_name/bin/activate"
+$(dirname "$0")/ezshare_resmed.py $@

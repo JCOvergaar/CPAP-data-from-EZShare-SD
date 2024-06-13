@@ -365,9 +365,9 @@ class EZShare():
 
 
 def main():
-    FILE = os.path.basename(__file__)
+    # FILE = os.path.basename(__file__)
     CONNECTION_DELAY = 5
-    APP_NAME = FILE.split('.')[0]
+    APP_NAME = os.path.basename(__file__).split('.')[0]
     CONFIG_FILES = [
         f'{APP_NAME}.ini',  # In the same directory as the script
         'config.ini',
@@ -404,7 +404,7 @@ def main():
     retries = config.getint(f'{APP_NAME}', 'retries', fallback=5)
 
     # Parse command line arguments
-    description = """\
+    description = textwrap.dedent("""\
     This script allows you to easily use an inexpensive EZShare SD card or 
     adapter in your Resmed CPAP/BiPAP device and download the data from your 
     CPAP/BiPAP device for use in OSCAR and similar software without having to 
@@ -412,15 +412,15 @@ def main():
     for the script. This may be called from its folder directly using a 
     config.ini file in the same folder or in standard POSIX config locations to
     set the default values. Arguments will override the config file.
-    """
+    """)
     epilog = textwrap.dedent(f"""\
     Examples:
-        {FILE}
-        {FILE} --ssid ezshare --psk 88888888
-        {FILE} --start_from 20230101 --show_progress --overwrite
-        {FILE} --ssid ezshare --psk 88888888 --verbose --overwrite 
+        {APP_NAME}
+        {APP_NAME} --ssid ezshare --psk 88888888
+        {APP_NAME} --start_from 20230101 --show_progress --overwrite
+        {APP_NAME} --ssid ezshare --psk 88888888 --verbose --overwrite 
     """)
-    parser = argparse.ArgumentParser(prog='foo', description=description, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(prog=APP_NAME, description=description, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--path', type=str, help=f'set destination path, defaults to {path}')
     parser.add_argument('--url', type=str, help=f'set source URL, Defaults to {url}')
     parser.add_argument('--start_from', type=str, help=f'start from date in YYYYMMDD format, deaults to {start_from}; this will override day_count if set')
