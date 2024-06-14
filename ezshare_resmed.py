@@ -11,6 +11,8 @@ import configparser
 import re
 import logging
 import textwrap
+import shutil
+import tempfile
 
 import bs4
 import requests
@@ -81,99 +83,168 @@ class EZShare():
         self.ssid = ssid
         self.psk = psk
         self.connection_id = None
+        self.existing_connection_id = None
         self.log = logging.getLogger("EZShare")
+        self.platform_system = platform.system()
 
         if self.ssid:
             self.log.info(f"Connecting to {self.ssid}. Waiting a few seconds for connection to establish...")
-            if self.connect_to_wifi():
-                time.sleep(connection_delay)
-            else:
-                sys.exit("Connection attempt canceled by user.")
+            try:
+                self.connect_to_wifi()
+            except OSError as e:
+                self.log.warning(f"Failed to connect to {self.ssid}. Error: {e}")
+                if sys.__stdin__.isatty():
+                    response = input("Unable to connect automatically, please connect manually and press 'C' to continue or any other key to cancel: ")
+                    if response.lower() == 'c':
+                        return True
+                    else:
+                        sys.exit("Connection attempt canceled by user.")
 
         self.session = requests.Session()
         self.ignore = ['.', '..', 'back to photo'] + ignore
-        self.retries = retry.Retry(total=retries, backoff_factor=0.25)
-        self.session.mount('http://', adapters.HTTPAdapter(max_retries=self.retries))
+        self.retries = retries
+        self.retry = retry.Retry(total=retries, backoff_factor=0.25)
+        self.session.mount('http://', adapters.HTTPAdapter(max_retries=self.retry))
+
+    @property
+    def wifi_profile(self):
+        if self.ssid and self.psk:
+            return textwrap.dedent(f"""\
+                <?xml version="1.0"?>
+                <WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
+                    <name>{self.ssid}</name>
+                    <SSIDConfig>
+                        <SSID>
+                            <name>{self.ssid}</name>
+                        </SSID>
+                    </SSIDConfig>
+                    <connectionType>ESS</connectionType>
+                    <connectionMode>manual</connectionMode>
+                    <MSM>
+                        <security>
+                            <authEncryption>
+                                <authentication>WPA2PSK</authentication>
+                                <encryption>AES</encryption>
+                                <useOneX>false</useOneX>
+                            </authEncryption>
+                            <sharedKey>
+                                <keyType>passPhrase</keyType>
+                                <protected>false</protected>
+                                <keyMaterial>{self.psk}</keyMaterial>
+                            </sharedKey>
+                        </security>
+                    </MSM>
+                    <MacRandomization xmlns="http://www.microsoft.com/networking/WLAN/profile/v3">
+                        <enableRandomization>false</enableRandomization>
+                    </MacRandomization>
+                </WLANProfile>
+            """)
+        elif self.ssid:
+            return textwrap.dedent(f"""\
+                <?xml version="1.0" encoding="US-ASCII"?>
+                <WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
+                    <name>{self.ssid}</name>
+                    <SSIDConfig>
+                        <SSID>
+                            <name>{self.ssid}</name>
+                        </SSID>
+                    </SSIDConfig>
+                    <connectionType>ESS</connectionType>
+                    <connectionMode>auto</connectionMode>
+                    <MSM>
+                        <security>
+                            <authEncryption>
+                                <authentication>open</authentication>
+                                <encryption>none</encryption>
+                                <useOneX>false</useOneX>
+                            </authEncryption>
+                        </security>
+                    </MSM>
+                    <MacRandomization xmlns="http://www.microsoft.com/networking/WLAN/profile/v3">
+                        <enableRandomization>false</enableRandomization>
+                    </MacRandomization>
+                </WLANProfile>
+            """)
+        else:
+            return None
 
     def connect_to_wifi(self):
-        """Wifi Connect - If enabled, check OS, and if MacOS, switch wifi to the EZShare SSID
+        """Wifi Connect - Connect to EZShare Wi-Fi network
         
-        Returns:
-            bool: True when succesfully connected or user manually continues, False when user cancels
+        Raises:
+            OSError: When automatically connecting to WiFi is not supported on
+        the system or it fails to connect
         """
-        if platform.system() == 'Darwin':
-            cmd = f'networksetup -setairportnetwork en0 {self.ssid}'
+        if self.platform_system == 'Darwin':
+            cmd = f'networksetup -setairportnetwork en0 "{self.ssid}"'
             if self.psk:
                 cmd += f' {self.psk}'
-
-            result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            if result.returncode == 0:
-                self.log.info(f"Connected to {self.ssid} successfully.")
-                return True
-            else:
-                self.log.warning(f"Failed to connect to {self.ssid}. Error: {result.stderr.decode('utf-8')}")
-                if sys.__stdin__.isatty():
-                    response = input("Unable to connect automatically, please connect manually and press 'C' to continue or any other key to cancel: ")
-                    if response.lower() == 'c':
-                        return True
-                    else:
-                        return False
-                else:
-                    return False
-        elif platform.system() == 'Linux' and platform.freedesktop_os_release()["VERSION_CODENAME"] == 'bookworm':
+            try:
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+            except subprocess.CalledProcessError as e:
+                raise OSError(f"Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}")
+            
+        elif self.platform_system == 'Linux' and shutil.which('nmcli'):
             if self.psk:
-                cmd = f'nmcli d wifi connect "{self.ssid}" password {self.psk}'
-            else:
+               cmd = f'nmcli d wifi connect "{self.ssid}" password {self.psk}'
+            else: 
                 cmd = f'nmcli connection up "{self.ssid}"'
 
-            for attempt in range(3):
-                try:
-                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+            try:
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
+            except subprocess.CalledProcessError as e:
+                raise OSError(f"Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}")
+
+            # Regular expression pattern to match the string after "activated with"
+            pattern = r"activated with '([^']*)'"
+
+            # Search for the pattern in the message
+            match = re.search(pattern, result.stdout)
+
+            if match:
+                # Extract the string after "activated with"
+                self.connection_id = match.group(1)
+
+
+        elif self.platform_system == "Windows":
+            existing_profile_command = 'netsh wlan show interfaces'
+            try:
+                existing_profile_result = subprocess.run(existing_profile_command, shell=True, capture_output=True, text=True, check=True)
+            except subprocess.CalledProcessError as e:
+                raise OSError(f"Error checking network existing network profile. Return code: {e.returncode}, error: {e.stderr}")
+            for line in existing_profile_result.stdout.split('\n'):
+                if line.strip().startswith('Profile'):
+                    self.existing_connection_id = line.split(':')[1].strip()
                     break
-                except requests.exceptions.RequestException as e:
-                    time.sleep(1) # Wait a second before retrying
 
-            if result.returncode == 0:
-                # Regular expression pattern to match the string after "activated with"
-                pattern = r"activated with '([^']*)'"
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as wifi_profile_file:
+                wifi_profile_file.write(self.wifi_profile)
+            profile_cmd = f'netsh wlan add profile filename={wifi_profile_file.name}'
+            try:
+                profile_result = subprocess.run(profile_cmd, shell=True, capture_output=True, text=True, check=True)
+            except subprocess.CalledProcessError as e:
+                raise OSError(f"Error creating network profile for {self.ssid}. Return code: {e.returncode}, error: {e.stderr}")
+            finally:
+                os.remove(wifi_profile_file.name)
+            self.connection_id = self.ssid
+            self.log.info(f"Created profile for {self.ssid} successfully.")
 
-                # Search for the pattern in the message
-                match = re.search(pattern, result.stdout)
-
-                if match:
-                    # Extract the string after "activated with"
-                    self.connection_id = match.group(1)
-
-                self.log.info(f"Connected to {self.ssid} successfully.")
-                return True
-            else:
-                self.log.warning(f"Failed to connect to {self.ssid}. Error: {result.stderr.decode('utf-8')}")
-                if sys.__stdin__.isatty():
-                    response = input("Unable to connect automatically, please connect manually and press 'C' to continue or any other key to cancel: ")
-                    if response.lower() == 'c':
-                        return True
-                    else:
-                        return False
-                else:
-                    return False
+            connect_cmd = f'netsh wlan connect name="{self.connection_id}"'
+            try:
+                connect_result = subprocess.run(connect_cmd, shell=True, capture_output=True, text=True, check=True)
+            except subprocess.CalledProcessError as e:
+                raise OSError(f"Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}")
         else:
-            self.log.warning(f'Wifi connection is not supported on this OS.')
-            self.log.warning(f'You appear to be running {platform.system()}.')
-            if sys.__stdin__.isatty():
-                response = input(f"""Please connect manually and press 'C' and then 'Enter' to continue, or any other key and 'Enter' to cancel: """)
-                if response.lower() == 'c':
-                    return True
-                else:
-                    return False
-            else:
-                return False
+            raise OSError('Automatic Wi-Fi connection is not supported on this system.')
+            
+        self.log.info(f"Connected to {self.ssid} successfully.")
+
             
     def run(self):
         """Entry point for the EZShare class
 
         Raises:
-            SystemExit: When the path does not exist and create_missing is off
+            SystemExit: When the path does not exist and create_missing is False
         """
         if not os.path.exists(self.path):
             if self.create_missing:
@@ -353,19 +424,34 @@ class EZShare():
     def disconnect_from_wifi(self):
         """WIFI Disconnect - Dropping the wifi interface briefly makes MacOS reconnect to the default SSID
         """
-        if platform.system() == 'Darwin':
+        if self.platform_system == 'Darwin':
             # Turn off the Wi-Fi interface (en0)
             subprocess.run('networksetup -setairportpower en0 off', shell=True)
             # Turn it back on
             subprocess.run('networksetup -setairportpower en0 on', shell=True)
-        elif platform.system() == 'Linux' and platform.freedesktop_os_release()["VERSION_CODENAME"] == 'bookworm':
+        elif self.platform_system == 'Linux' and shutil.which('nmcli'):
             if self.connection_id:
                 cmd = f'nmcli connection down {self.connection_id}'
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=True)
 
+        elif self.platform_system == 'Windows':
+            if self.connection_id:
+                profile_cmd = f'netsh wlan delete profile {self.connection_id}'
+                try:
+                    profile_result = subprocess.run(profile_cmd, shell=True, capture_output=True, text=True, check=True)
+                except subprocess.CalledProcessError as e:
+                    raise OSError(f"Error removing network profile for {self.ssid}. Return code: {e.returncode}, error: {e.stderr}")
+            if self.existing_connection_id:
+                connect_cmd = f'netsh wlan connect name="{self.existing_connection_id}"'
+                try:
+                    connect_result = subprocess.run(connect_cmd, shell=True, capture_output=True, text=True, check=True)
+                except subprocess.CalledProcessError as e:
+                    raise OSError(f"Error reconnecting to original network profile: {self.existing_connection_id}. Return code: {e.returncode}, error: {e.stderr}")
+
 
 def main():
-    # FILE = os.path.basename(__file__)
+    """Entry point when used as a CLI tool
+    """
     CONNECTION_DELAY = 5
     APP_NAME = os.path.basename(__file__).split('.')[0]
     CONFIG_FILES = [
@@ -404,21 +490,16 @@ def main():
     retries = config.getint(f'{APP_NAME}', 'retries', fallback=5)
 
     # Parse command line arguments
-    description = textwrap.dedent("""\
-    This script allows you to easily use an inexpensive EZShare SD card or 
-    adapter in your Resmed CPAP/BiPAP device and download the data from your 
-    CPAP/BiPAP device for use in OSCAR and similar software without having to 
-    remove the card every time. Configuration files can be used to set defaults
-    for the script. This may be called from its folder directly using a 
-    config.ini file in the same folder or in standard POSIX config locations to
-    set the default values. Arguments will override the config file.
+    description = textwrap.dedent(f"""\
+    {APP_NAME} wirelessly syncs Resmed CPAP/BiPAP treatment data logs stored on a EZShare WiFi SD card wirelessly to your local device
+    
+    A configuration file can be used to set defaults
+    See documentation for confiuration file options, default locations and precidence 
+    Command line arguments will override the configuration file
     """)
     epilog = textwrap.dedent(f"""\
-    Examples:
-        {APP_NAME}
-        {APP_NAME} --ssid ezshare --psk 88888888
-        {APP_NAME} --start_from 20230101 --show_progress --overwrite
-        {APP_NAME} --ssid ezshare --psk 88888888 --verbose --overwrite 
+    Example:
+        {APP_NAME} --ssid ezshare --psk 88888888 -v
     """)
     parser = argparse.ArgumentParser(prog=APP_NAME, description=description, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--path', type=str, help=f'set destination path, defaults to {path}')
@@ -430,7 +511,7 @@ def main():
     parser.add_argument('--overwrite', action='store_true', help=f'overwrite existing files, defaults to {overwrite}')
     parser.add_argument('--create_missing', action='store_true', help=f'create destination path if missing, defaults to {create_missing}')
     parser.add_argument('--ignore', type=str, help=f'case insensitive comma separated list of files to ignore, defaults to {ignore}')
-    parser.add_argument('--ssid', type=str, help=f'set network SSID; if set connection to the WiFi network will be attempted, defaults to {ssid}')
+    parser.add_argument('--ssid', type=str, help=f'set network SSID; if set automaticconnection to the WiFi network will be attempted, defaults to {ssid}')
     parser.add_argument('--psk', type=str, help=f'set network pass phrase, defaults to {psk}')
     parser.add_argument('--retries', type=int, help=f'set number of retries for failed downloads, defaults to {retries}')
     args = parser.parse_args()

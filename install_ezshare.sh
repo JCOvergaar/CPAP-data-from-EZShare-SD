@@ -22,12 +22,6 @@ install_deps() {
     fi
 }
 
-activate_venv() {
-    local env_name=${1:-".venv"}
-
-    source $env_name/bin/activate
-}
-
 check_venv() {
     local env_name=${1:-".venv"}
 
