@@ -4,7 +4,7 @@
 # This script allows you to easily use an inexpensive EZShare SD card or adapter in
 # your Resmed CPAP/BiPAP device and download the data from your CPAP/BiPAP device for
 # use in OSCAR and similar software without having to remove the card every time.
-# For Mac users, it can automatically switch to the EZShare network and back. 
+# For Mac users, it can automatically switch to the EZShare network and back.
 # For Windows users, leave USE_NETWORK_SWITCHING set to False.
 # This was tested on a Resmed AirSense 11 and AirCurve 10. YMMV on other devices.
 # OSCAR can be downloaded here https://www.sleepfiles.com/OSCAR/
@@ -26,13 +26,13 @@
 # Setup instructions for Windows users
 # Install Python 3 from the official website: https://www.python.org/downloads/
 # Make sure to check the option to add Python to PATH during the installation process.
-# 
+#
 # Open Command Prompt and run the following commands to install additional libraries:
 #   pip install requests beautifulsoup4
 # #################################################################################################
 
 # #################################################################################################
-# The default code (os.path.join etc) will place the file in the path below. 
+# The default code (os.path.join etc) will place the file in the path below.
 # You can change that in the config block
 # Windows:      C:\Users\MY_USERNAME\Documents\CPAP_Data
 # MacOS:        /Users/MY_USERNAME/Documents/CPAP_Data
@@ -42,9 +42,9 @@
 
 # #################################################################################################
 # This may be called from its folder directly, with or without arguments to overwrite the defaults:
-# python ezshare_resmed.py 
+# python ezshare_resmed.py
 # python ezshare_resmed.py --start_from 20230101 --show_progress Verbose --overwrite
-# It may also be called from a shell script, so you can put that on your desktop 
+# It may also be called from a shell script, so you can put that on your desktop
 # while keeping the python code in a less accessible location:
 # ./run_foo.sh
 # ./run_foo.sh --start_from 20230101 --show_progress Verbose --overwrite
@@ -130,8 +130,9 @@ if config_path:
     SHOW_PROGRESS = config.get('ezshare_resmed', 'show_progress', fallback='Verbose')
     OVERWRITE_EXISTING_FILES = config.getboolean('ezshare_resmed', 'overwrite', fallback=False)
     CREATE_MISSING = config.getboolean('ezshare_resmed', 'create_missing', fallback=False)
+    USE_NETWORK_SWITCHING = config.getboolean('ezshare_resmed', 'use_network_switching', fallback=True)
     EZSHARE_NETWORK = config.get('ezshare_resmed', 'sid', fallback='ezshare')
-    EZSHARE_PASSWORD = config.get('ezshare_resmed', 'psk', fallback='88888888')
+    EZSHARE_PASSWORD = config.get('ezshare_resmed', 'psk', fallback='')
     root_path = config.get('ezshare_resmed', 'path', fallback=os.path.join(os.path.expanduser('~'), "Documents", "CPAP_Data", "SD_card"))
 
 # #################################################################################################
@@ -310,7 +311,7 @@ def check_files(files,url,dir_path):
 # Primary control function -
 # #################################################################################################
 
-def controller(url, dir_path): 
+def controller(url, dir_path):
     files, dirs = get_files_and_dirs(url)
 
     if not os.path.exists(dir_path) and CREATE_MISSING:
@@ -319,8 +320,8 @@ def controller(url, dir_path):
     check_files(files, url, dir_path) # Skip file?
     check_dirs(dirs, url, dir_path) #skip folder?
 
-    if 'DATALOG' in dir_path and SHOW_PROGRESS: 
-        print(f'{os.path.basename(dir_path)} completed') 
+    if 'DATALOG' in dir_path and SHOW_PROGRESS:
+        print(f'{os.path.basename(dir_path)} completed')
 
 # #################################################################################################
 # Wifi Connect - If enabled, check OS, and if MacOS, switch wifi to the EZShare SSID
@@ -423,12 +424,12 @@ if USE_NETWORK_SWITCHING:
     else:
         print("Connection attempt canceled by user.")
         sys.exit(0) # Exit the entire process
-        
+
 controller(root_url, root_path)
 
 if USE_NETWORK_SWITCHING:
     if SHOW_PROGRESS:
-        print(f"\nExiting {EZSHARE_NETWORK}. Waiting a few seconds for connection to establish...")
+        print(f"\nExiting {EZSHARE_NETWORK}. Waiting a few seconds for connection to disconnect...")
     disconnect_from_wifi()
     time.sleep(CONNECTION_DELAY)
 
