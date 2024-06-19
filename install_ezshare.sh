@@ -42,7 +42,7 @@ mkdir -p $HOME/.local/bin
 mkdir -p $HOME/.config/ezshare_resmed
 cp ezshare_resmed $HOME/.local/bin
 cp ezshare_resmed.py $HOME/.local/bin
-cp ezshare_resmed.ini $HOME/.config/ezshare_resmed/config.ini
+cp ezshare_resmed_default.ini $HOME/.config/ezshare_resmed/config.ini
 
 if ! [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
     echo -e "\nezshare_resmed is installed to $HOME/.local/bin which is not in your PATH"

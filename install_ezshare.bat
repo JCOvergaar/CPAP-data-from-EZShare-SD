@@ -13,7 +13,7 @@ mkdir %USERPROFILE%\.local\bin
 mkdir %USERPROFILE%\.config\ezshare_resmed
 copy ezshare_resmed.cmd %USERPROFILE%\.local\bin
 copy ezshare_resmed.py %USERPROFILE%\.local\bin
-copy ezshare_resmed.ini %USERPROFILE%\.config\ezshare_resmed\config.ini
+copy ezshare_resmed_default.ini %USERPROFILE%\.config\ezshare_resmed\config.ini
 
 SET script_dir=%~dp0
 SET ps_script_path=%script_dir%local_bin_path.ps1
