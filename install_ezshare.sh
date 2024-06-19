@@ -44,6 +44,9 @@ cp ezshare_resmed $HOME/.local/bin
 cp ezshare_resmed.py $HOME/.local/bin
 cp ezshare_resmed_default.ini $HOME/.config/ezshare_resmed/config.ini
 
+chmod +x $HOME/.local/bin/ezshare_resmed
+chmod +x $HOME/.local/bin/ezshare_resmed.py
+
 if ! [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
     echo -e "\nezshare_resmed is installed to $HOME/.local/bin which is not in your PATH"
     echo "Add \$HOME/.local/bin to your PATH before running ezshare_resmed"
@@ -52,15 +55,15 @@ if ! [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
     if [[ $shell == "zsh" ]]; then
         echo "Your shell appears to be zsh. To set the PATH in zsh run:"
         echo -e "\necho 'export PATH="\$HOME/.local/bin:\$PATH"' >> ~/.zshrc"
-        echo -e "source ~/.zshrc\n"
+        echo "source ~/.zshrc"
     elif [[ $shell == "bash" ]]; then
         echo "Your shell appears to be bash. To set the PATH in bash run:"
         echo -e "\necho 'export PATH="\$HOME/.local/bin:\$PATH"' >> ~/.bashrc"
-        echo -e "source ~/.bashrc\n"
+        echo "source ~/.bashrc"
     fi
 fi
 
-echo "Installation complete"
+echo -e "\nInstallation complete"
 echo "Default configuration file saved at $HOME/.config/ezshare_resmed/config.ini"
 echo "Run with:"
 echo -e "\nezshare_resmed"

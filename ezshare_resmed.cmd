@@ -7,7 +7,7 @@ SET script_dir=%~dp0
 CALL :check_venv %venv_name%,venv_exists
 
 IF %venv_exists%==0 (
-    echo "%venv_name% is not present. Run install.bat to setup environment"
+    echo "%venv_name% is not present. Run install_ezshare.bat to setup environment"
 )
 "%venv_name%\Scripts\python" %script_dir%ezshare_resmed.py %*
 

@@ -12,7 +12,8 @@ check_venv() {
 
 venv_name=~/.venv/ezshare_resmed
 if  ! check_venv $venv_name ; then
-    echo "$venv_name is not present. Run ./install.sh to setup environment"
+    echo "$venv_name is not present. Run ./install_ezshare.sh to setup environment"
+    exit 1
 fi
 source "$venv_name/bin/activate"
 $(dirname "$0")/ezshare_resmed.py $@
