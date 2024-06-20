@@ -582,7 +582,7 @@ def main():
     """)
     epilog = textwrap.dedent(f"""\
     Example:
-        {APP_NAME} --ssid ezshare --psk 88888888 -v
+        {APP_NAME} --ssid ezShare --psk 88888888 --show_progress
     """)
     parser = argparse.ArgumentParser(prog=APP_NAME, description=description, 
                                      epilog=epilog, 

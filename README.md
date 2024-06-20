@@ -25,15 +25,15 @@ The program runs on Python 3, and requires dependencies to be installed. Python 
 ```
 
 ### Example
-    ezshare_resmed --ssid ezshare --psk 88888888 -v
+    ezshare_resmed --ssid ezshare --psk 88888888 --show_progress
 
 ### Data Save Location
-- Windows: `C:\Users\MY_USERNAME\Documents\CPAP_Data`
-- macOS: `/Users/MY_USERNAME/Documents/CPAP_Data`
-- Linux: `/home/MY_USERNAME/Documents/CPAP_Data`
+- Windows: `C:\Users\<USERNAME>\Documents\CPAP_Data`
+- macOS: `/Users/<USERNAME>/Documents/CPAP_Data`
+- Linux: `/home/<USERNAME>/Documents/CPAP_Data`
 
 ## Configuration
-Configuration to set the default parameters is done wiht a `config.ini` file.
+Configuration to set the default parameters is done with a `config.ini` file.
 
 ### Example `config.ini`
 ```
@@ -51,7 +51,7 @@ psk = 88888888
 retries = 5
 ```
 ### Configuration file locations
-ezshare_resmed looks for config files in order:
+ezshare_resmed looks for config files in this order:
 - `./ezshare_resmed.ini` - in the same directory as the script
 - `./config.ini` - in the same directory as the script
 - `~/.config/ezshare_resmed.ini`
@@ -65,8 +65,8 @@ ezshare_resmed looks for config files in order:
 2. [Run installer script](#install-ezshare_resmed)
 
 ### Install ezshare_resmed
-- [Install on Windows](#windows-setup)
-- [Install on macOS/Linux](#macos/linux-setup)
+- [Install on Windows](#winndows-setup)
+- [Install on macOS/Linux](#macoslinux-setup)
 
 #### Winndows Setup
 1. Open command window
@@ -93,7 +93,7 @@ A Quick Guide for Installing Python 3 on Common Operating Systems
 - [Install on Linux](#linux)
 
 #### Windows
-1. Open a command window, type `winget install -e --id Python.Python.3.12`
+1. Open a command window, Run: `winget install -e --id Python.Python.3.12`
 
 2. Once Python is installed, you should be able to open a command window, type `python`, hit ENTER, and see a Python prompt opened. Type `quit()` to exit it. You should also be able to run the command `pip` and see its options. If both of these work, then you are ready to go.
   - If you cannot run `python` or `pip` from a command prompt, you may need to add the Python installation directory path to the Windows PATH variable
