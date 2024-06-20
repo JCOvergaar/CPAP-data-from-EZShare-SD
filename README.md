@@ -11,11 +11,11 @@ The program runs on Python 3, and requires dependencies to be installed. Python 
 
 A Quick Guide for Installing Python 3 on Common Operating Systems
 
-1. [Install on Windows](#windows)
+1. [Install on Windows](###windows)
 2. [Install on macOS](#macos)
 3. [Install on Linux](#linux)
 
-### Windows ![Windows](img/windows_65.png)
+# Windows ![Windows](img/windows_65.png)
 1. Open a command window, type `winget install -e --id Python.Python.3.12`
 
 2. Once Python is installed, you should be able to open a command window, type `python`, hit ENTER, and see a Python prompt opened. Type `quit()` to exit it. You should also be able to run the command `pip` and see its options. If both of these work, then you are ready to go.
@@ -29,7 +29,7 @@ A Quick Guide for Installing Python 3 on Common Operating Systems
     - Now modify the PATH system variable by appending the text `;%PYTHON_HOME%\;%PYTHON_HOME%;%PYTHON_HOME%\Scripts\` to the end of it.
     - Close out your windows, open a command window and make sure you can run the commands `python` and `pip`
 
-### macOS ![MacOS](img/apple_65.png)
+# macOS ![MacOS](img/apple_65.png)
 macOS comes with a native version of Python but it is not recommended to use system Python.
 
 There are a couple of ways we can install Python3 on your MacOS operating system:
@@ -55,7 +55,7 @@ There are a couple of ways we can install Python3 on your MacOS operating system
 4. Once Python is installed, you should be able to open your **Terminal** application, type `python3`, hit ENTER, and see a Python 3.X.X prompt opened. Type `quit()` to exit it. You should also be able to run the command `pip3` and see its options. If both of these work, then you are ready to go.
   - Here are some additional resources on [Installing Python 3 on Mac OS X](https://docs.python-guide.org/starting/install3/osx/)
 
-### Linux ![Linux](img/linux_65.png)
+# Linux ![Linux](img/linux_65.png)
 - **Raspberry Pi OS** may need Python and PIP
   - Install them: `sudo apt install -y python3-pip`
 - **Debian (Ubuntu)** distributions may need Python and PIP
