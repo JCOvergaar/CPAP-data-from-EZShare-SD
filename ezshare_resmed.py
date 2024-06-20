@@ -210,10 +210,12 @@ class EZShare():
                 if self.psk:
                     connect_cmd += f' {self.psk}'
                 try:
-                    subprocess.run(connect_cmd, shell=True, 
+                    connect_result = subprocess.run(connect_cmd, shell=True, 
                                    capture_output=True, text=True, check=True)
                 except subprocess.CalledProcessError as e:
                     raise RuntimeError(f'Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}')
+                if connect_result.stdout.startswith('Failed to join network'):
+                    raise RuntimeError(f'Error connecting to {self.ssid}. Error: {connect_result.stdout}')
                 self.connection_id = self.ssid
             else:
                 raise RuntimeError('No Wi-Fi interface found')
