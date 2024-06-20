@@ -2,6 +2,13 @@
 SETLOCAL
 
 SET venv_name=%USERPROFILE%\.venv\ezshare_resmed
+CALL :check_python python_exists
+
+IF %python_exists%==0 (
+    ECHO Python not installed, please install
+    EXIT /B 1
+)
+
 CALL :check_venv %venv_name%,venv_exists
 
 IF %venv_exists%==0 (
@@ -49,5 +56,14 @@ IF EXIST "%~1\" (
     SET /A %~2=1
 ) ELSE (
     SET /A %~2=0
+)
+EXIT /B 0
+
+:check_python
+WHERE python >nul 2>nul
+IF %ERRORLEVEL% EQU 0 (
+    SET /A %~1=1
+) ELSE (
+    SET /A %~1=0
 )
 EXIT /B 0

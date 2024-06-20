@@ -30,7 +30,20 @@ check_venv() {
     fi
 }
 
+check_python() {
+    if command -v python3 > /dev/null 2>&1 ; then
+        true
+    else
+        false
+    fi
+}
+
 venv_name=$HOME/.venv/ezshare_resmed
+if ! check_python ; then
+    echo "Python3 not installed, please install"
+    exit 1
+fi
+
 if ! check_venv $venv_name ; then
     create_venv $venv_name
 fi
