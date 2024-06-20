@@ -6,23 +6,24 @@ The program runs on Python 3, and requires dependencies to be installed. Python 
 ## Usage
 
 ### Options
-```
-  -h, --help            show this help message and exit
-  --path PATH           set destination path, defaults to $HOME/Documents/CPAP_Data/SD_card
-  --url URL             set source URL, Defaults to http://192.168.4.1/dir?dir=A:
-  --start_from START_FROM
-                        start from date in YYYYMMDD format, deaults to None; this will override day_count if set
-  --day_count DAY_COUNT, -n DAY_COUNT
-                        number of days to sync, defaults to None; if both start_from and day_count are unset all files will be synced
-  --show_progress       show progress, defaults to True
-  --verbose, -v         verbose output, defaults to False
-  --overwrite           overwrite existing files, defaults to False
-  --ignore IGNORE       case insensitive comma separated list (no spaces) of files to ignore, defaults to JOURNAL.JNL,ezshare.cfg,System Volume Information
-  --ssid SSID           set network SSID; WiFi connection will be attempted if set, defaults to ez Share
-  --psk PSK             set network pass phrase, defaults to 88888888
-  --retries RETRIES     set number of retries for failed downloads, defaults to 5
-  --version             show program's version number and exit
-```
+
+| Argument | Description |
+| --- | --- |
+| `-h`, `--help` | show this help message and exit |
+| `--path PATH` | set destination path, defaults to $HOME/Documents/CPAP_Data/SD_card |
+| `--url URL` | set source URL, Defaults to http://192.168.4.1/dir?dir=A: |
+| `--start_from START_FROM` | start from date in YYYYMMDD format, deaults to None; this will override day_count if set |
+| `--day_count DAY_COUNT`, `-n DAY_COUNT` | number of days to sync, defaults to None; if both start_from and day_count are unset all files will be synced |
+| `--show_progress` | show progress, defaults to True |
+| `--verbose`, `-v` | verbose output, defaults to False |
+| `--overwrite` | force overwriting existing files, defaults to False |
+| `--keep_old` | force overwriting existing files, defaults to False |
+| `--ignore IGNORE` | case insensitive comma separated list (no spaces) of files to ignore, defaults to JOURNAL.JNL,ezshare.cfg,System Volume Information |
+| `--ssid SSID` | set network SSID; WiFi connection will be attempted if set, defaults to ez Share |
+| `--psk PSK` | set network pass phrase, defaults to 88888888 |
+| `--retries RETRIES` | set number of retries for failed downloads, defaults to 5 |
+| `--version` | show program's version number and exit |
+
 
 ### Example
     ezshare_resmed --ssid ezshare --psk 88888888 --show_progress
@@ -43,13 +44,15 @@ url = http://192.168.4.1/dir?dir=A:
 start_from = 20230924
 day_count = 5
 show_progress = True
-verbose = True
-overwrite = True
+verbose = False
+overwrite = False
+keep_old = False
 ignore = JOURNAL.JNL,ezshare.cfg,System Volume Information
 ssid = ez Share
 psk = 88888888
 retries = 5
 ```
+
 ### Configuration file locations
 ezshare_resmed looks for config files in this order:
 - `./ezshare_resmed.ini` - in the same directory as the script
@@ -107,22 +110,9 @@ A Quick Guide for Installing Python 3 on Common Operating Systems
     - Close out your windows, open a command window and make sure you can run the commands `python` and `pip`
 
 #### macOS
-macOS comes with a native version of Python but it is not recommended to use system Python.
+macOS comes with a native version of Python but it is not recommended to use the native Python in order to not alter the system environment. There are a couple of ways we can install Python3 but this script is only tested using Homebrew.
 
-There are a couple of ways we can install Python3 on your MacOS operating system:
-
-##### Option 1: Install the official Python release
-
-1. Browse to the [Python Downloads Page](https://www.python.org/downloads/)
-2. Click on the "Download Python 3.x.x" button on the page
-3. Walk through the steps of the installer wizard to install Python3
-4. Once installed, the wizard will open a Finder window with some `.command` files in it
-    - Double-click the `Install Certificates.command` file and the `Update Shell Profile.command` file to run each of them
-    - Close the windows once they are finished
-6. Open your **Terminal** application and run the command `python3` to enter the Python interactive command line. Issue the command `quit()` to exit. Also make sure PIP (the Python package manager) is installed by issuing the command `pip3 -V`. It should display the current version of PIP as well as Python (which should be some release of Python3).
-7. You're all done. Python is installed and ready to use.
-
-##### Option 2: Install with Homebrew
+##### Install with Homebrew
 [Homebrew](https://brew.sh/) is a MacOS Linux-like package manager. Walk through the below steps to install Homebrew and an updated Python interpreter along with it.
 
 1. Open your **Terminal** application and run: `xcode-select --install`. This will open a window. Click **'Get Xcode'** and install it from the app store.

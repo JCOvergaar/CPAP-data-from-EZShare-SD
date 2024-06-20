@@ -11,8 +11,6 @@ install_deps() {
 
     source $env_name/bin/activate
 
-    pip install -U pip
-
     if [ -f "requirements.txt" ]; then
         pip install -r ./requirements.txt
     fi

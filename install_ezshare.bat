@@ -35,8 +35,6 @@ EXIT /B 0
 :install_deps
 CALL %~1\Scripts\activate.bat
 
-pip install -U pip
-
 IF EXIST ".\requirements.txt" (
     pip install -r ".\requirements.txt"
 )

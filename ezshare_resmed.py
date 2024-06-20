@@ -35,8 +35,9 @@ class EZShare():
         path (str): Local path to store the downloaded files
         url (str): URL of the EZShare SD card
         start_time (datetime.datetime): Date to start syncing from
-        show_progress (bool): If progress should be shown
-        overwrite (bool): If existing files should be overwritten
+        show_progress (bool): Print progress
+        overwrite (bool): Overwrite existing files
+        keep_old (bool): Do not overwrite even if newer version is available
         ssid (str): SSID of the network to connect to
         psk (str): Passphrase of the network to connect to
         connection_id (str): Connection ID of the network connection
@@ -60,8 +61,9 @@ class EZShare():
         disconnect_from_wifi: Disconnect from the EZShare network
     """
 
-    def __init__(self, path, url, start_time, show_progress, verbose, overwrite, ssid, psk, 
-                 ignore, retries=5, connection_delay=5, debug=False):
+    def __init__(self, path, url, start_time, show_progress, verbose,
+                 overwrite, keep_old, ssid, psk, ignore, retries=5,
+                 connection_delay=5, debug=False):
         """
         Class constructor for the EZShare class
 
@@ -69,10 +71,10 @@ class EZShare():
             path (str): Local path to store the downloaded files
             url (str): URL of the EZShare SD card
             start_time (datetime.datetime): Date to start syncing from
-            show_progress (bool): If progress should be shown
+            show_progress (bool): Print progress
             verbose (bool): If verbose output should be shown
-            overwrite (bool): If existing files should be overwritten
-            create_missing (bool): If missing directories should be created
+            overwrite (bool): Overwrite existing files
+            keep_old (bool): Do not overwrite even if newer version is available
             ssid (str): SSID of the network to connect to
             psk (str): Passphrase of the network to connect to
             ignore (list[str]): List of files to ignore
@@ -86,12 +88,14 @@ class EZShare():
             log_level = logging.INFO
         else:
             log_level = logging.WARN
-        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=log_level)
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            level=log_level)
         self.path = pathlib.Path(path).expanduser()
         self.url = url
         self.start_time = start_time
         self.show_progress = show_progress
         self.overwrite = overwrite
+        self.keep_old = keep_old
         self.ssid = ssid
         self.psk = psk
         self.connection_id = None
@@ -100,11 +104,11 @@ class EZShare():
         self.interface_name = None
 
         if self.ssid:
-            self.print(f'Connecting to {self.ssid}. Waiting a few seconds for connection to establish...')
+            self.print(f'Connecting to {self.ssid}.')
             try:
                 self.connect_to_wifi()
             except RuntimeError as e:
-                logger.warning(f'Failed to connect to {self.ssid}. Error: {e}')
+                logger.warning('Failed to connect to %s. Error: %s', self.ssid, str(e))
         if not self.connection_id:
             if sys.__stdin__.isatty():
                 response = input('Unable to connect automatically, please connect manually and press "C" to continue or any other key to cancel: ')
@@ -112,6 +116,7 @@ class EZShare():
                     sys.exit('Cancled')
             else:
                 logger.warning('No Wi-Fi connection was estableshed. Attempting to continue...')
+        self.print('Waiting a few seconds for connection to establish...')
         time.sleep(connection_delay)
 
         self.session = requests.Session()
@@ -122,6 +127,9 @@ class EZShare():
 
     @property
     def wifi_profile(self):
+        """
+        str: Windows WiFi profile formatted in XML for the specified SSID and password
+        """
         if self.ssid and self.psk:
             return textwrap.dedent(f"""\
                 <?xml version="1.0"?>
@@ -181,8 +189,14 @@ class EZShare():
             """)
         else:
             return None
-        
+
     def print(self, message):
+        """
+        Checks if progress should be shown and if so prints the message
+
+        Args:
+            message (str): message to print
+        """
         if self.show_progress:
             print(message)
 
@@ -197,12 +211,12 @@ class EZShare():
         if self.platform_system == 'Darwin':
             get_interface_cmd = 'networksetup -listallhardwareports'
             try:
-                get_interface_result = subprocess.run(get_interface_cmd, 
-                                                      shell=True, 
-                                                      capture_output=True, 
+                get_interface_result = subprocess.run(get_interface_cmd,
+                                                      shell=True,
+                                                      capture_output=True,
                                                       text=True, check=True)
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(f'Error connecting getting Wi-Fi interface name. Return code: {e.returncode}, error: {e.stderr}')
+                raise RuntimeError(f'Error connecting getting Wi-Fi interface name. Return code: {e.returncode}, error: {e.stderr}') from e
             for index, line in enumerate(get_interface_result.stdout.split('\n')):
                 if 'Wi-Fi' in line:
                     self.interface_name = get_interface_result.stdout.split('\n')[index + 1].split(':')[1].strip()
@@ -212,25 +226,28 @@ class EZShare():
                 if self.psk:
                     connect_cmd += f' {self.psk}'
                 try:
-                    connect_result = subprocess.run(connect_cmd, shell=True, 
-                                   capture_output=True, text=True, check=True)
+                    connect_result = subprocess.run(connect_cmd, shell=True,
+                                                    capture_output=True,
+                                                    text=True, check=True)
                 except subprocess.CalledProcessError as e:
-                    raise RuntimeError(f'Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}')
+                    raise RuntimeError(f'Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}') from e
                 if connect_result.stdout.startswith('Failed to join network'):
                     raise RuntimeError(f'Error connecting to {self.ssid}. Error: {connect_result.stdout}')
                 self.connection_id = self.ssid
             else:
                 raise RuntimeError('No Wi-Fi interface found')
-            
-        elif self.platform_system == 'Linux' and shutil.which('nmcli'):
+
+        elif self.platform_system == 'Linux' and self.has_network_manager():
             if self.psk:
                 connect_cmd = f'nmcli d wifi connect "{self.ssid}" password {self.psk}'
-            else: 
+            else:
                 connect_cmd = f'nmcli connection up "{self.ssid}"'
             try:
-                connect_result = subprocess.run(connect_cmd, shell=True, capture_output=True, text=True, check=True)
+                connect_result = subprocess.run(connect_cmd, shell=True,
+                                                capture_output=True, text=True,
+                                                check=True)
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(f'Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}')
+                raise RuntimeError(f'Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}') from e
 
             # Regular expression pattern to match the string after "activated with"
             pattern = r"activated with '([^']*)'"
@@ -245,42 +262,87 @@ class EZShare():
         elif self.platform_system == 'Windows':
             existing_profile_cmd = 'netsh wlan show interfaces'
             try:
-                existing_profile_result = subprocess.run(existing_profile_cmd, 
-                                                         shell=True, 
-                                                         capture_output=True, 
+                existing_profile_result = subprocess.run(existing_profile_cmd,
+                                                         shell=True,
+                                                         capture_output=True,
                                                          text=True, check=True)
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(f'Error checking network existing network profile. Return code: {e.returncode}, error: {e.stderr}')
+                raise RuntimeError(f'Error checking network existing network profile. Return code: {e.returncode}, error: {e.stderr}') from e
             for line in existing_profile_result.stdout.split('\n'):
                 if line.strip().startswith('Profile'):
                     self.existing_connection_id = line.split(':')[1].strip()
                     break
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', 
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.xml',
                                              delete=False) as wifi_profile_file:
                 wifi_profile_file.write(self.wifi_profile)
             profile_cmd = f'netsh wlan add profile filename={wifi_profile_file.name}'
             try:
-                subprocess.run(profile_cmd, shell=True, capture_output=True, 
+                subprocess.run(profile_cmd, shell=True, capture_output=True,
                                text=True, check=True)
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(f'Error creating network profile for {self.ssid}. Return code: {e.returncode}, error: {e.stderr}')
+                raise RuntimeError(f'Error creating network profile for {self.ssid}. Return code: {e.returncode}, error: {e.stderr}') from e
             finally:
                 os.remove(wifi_profile_file.name)
             connection_id = f'{self.ssid}_script_profile'
             connect_cmd = f'netsh wlan connect name="{connection_id}"'
             try:
-                subprocess.run(connect_cmd, shell=True, capture_output=True, 
+                subprocess.run(connect_cmd, shell=True, capture_output=True,
                                text=True, check=True)
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(f'Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}')
+                raise RuntimeError(f'Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}') from e
             self.connection_id = connection_id
         else:
             raise RuntimeError('Automatic Wi-Fi connection is not supported on this system.')
-            
+
         self.print(f'Connected to {self.ssid} successfully.')
 
-            
+    def has_network_manager(self):
+        """
+        Checks if nmcli is present on the system and if it can manage the WiFi network
+        """
+        if shutil.which('nmcli') is None:
+            return False
+
+        network_manager_is_active_cmd = 'systemctl is-active --quiet NetworkManager'
+        try:
+            subprocess.run(network_manager_is_active_cmd, shell=True,
+                           capture_output=True, text=True, check=True)
+        except subprocess.CalledProcessError:
+            return False
+
+        get_device_cmd = 'nmcli device status'
+        get_device_result = subprocess.run(get_device_cmd, shell=True,
+                                           capture_output=True, text=True,
+                                           check=True)
+        for line in get_device_result.stdout.split('\n'):
+            if 'wifi' in line and 'wifi-p2p' not in line:
+                self.interface_name = line.split()[0]
+                break
+        if self.interface_name is None:
+            return False
+
+        managed_cmd = f'nmcli device show "{self.interface_name}"'
+        managed_result = subprocess.run(managed_cmd, shell=True,
+                                        capture_output=True, text=True,
+                                        check=True)
+        for line in managed_result.stdout.split('\n'):
+            if line.startswith('GENERAL.STATE:'):
+                if 'connected' not in line:
+                    self.interface_name = None
+                    return False
+                break
+
+        nmcli_works_cmd = f'nmcli device wifi list ifname "{self.interface_name}"'
+        try:
+            subprocess.run(nmcli_works_cmd, shell=True, capture_output=True,
+                           text=True, check=True)
+        except subprocess.CalledProcessError:
+            self.interface_name = None
+            return False
+
+        return True
+
     def run(self):
         """
         Entry point for the EZShare class
@@ -292,7 +354,7 @@ class EZShare():
             self.path.mkdir(parents=True, exist_ok=True)
         except FileExistsError:
             sys.exit(f'Path {self.path} already exists and is a file. Unable to continue.')
-        
+
         self.recursive_traversal(self.url, self.path)
 
     def recursive_traversal(self, url, dir_path):
@@ -326,7 +388,7 @@ class EZShare():
                     [0] (str): Name of the directory
                     [1] (str): URL component to the directory
         """
-        html_content = requests.get(url)
+        html_content = requests.get(url, timeout=5)
         soup = bs4.BeautifulSoup(html_content.text, 'html.parser')
         files = []
         dirs = []
@@ -343,7 +405,7 @@ class EZShare():
                 match = re.search(regex_pattern, modifypart)
 
                 if match:
-                    file_ts = datetime.datetime.strptime(match.group(), 
+                    file_ts = datetime.datetime.strptime(match.group(),
                                                          '%Y-%m-%d   %H:%M:%S').timestamp()
                 else:
                     file_ts = 0
@@ -388,7 +450,7 @@ class EZShare():
 
             #Date files, existing and overwrite is off
             if 'DATALOG' in dir_path.parts and local_path.exists() and not self.overwrite:
-                logger.debug(f'{filename} already exists... skipped')
+                logger.debug('%s already exists... skipped', filename)
                 continue
 
             self.download_file(absolute_file_url, local_path, file_ts=file_ts)
@@ -411,29 +473,32 @@ class EZShare():
         if already_exists:
             mtime = file_path.stat().st_mtime
         if self.overwrite or mtime < file_ts:
-            logger.debug(f'Downloading {str(file_path)} from {url}')
+            logger.debug('Downloading %s from %s', str(file_path), url)
             response = self.session.get(url, stream=True)
             response.raise_for_status()
 
-            total_size = int(response.headers.get("content-length", 0))
+            total_size = int(response.headers.get('content-length', 0))
             block_size = 1024
 
-            with tqdm.tqdm(total=total_size, unit="B", unit_scale=True, desc=file_path.name, disable=not self.show_progress) as progress_bar:
+            with tqdm.tqdm(total=total_size, unit='B', unit_scale=True,
+                           desc=file_path.name,
+                           disable=not self.show_progress) as progress_bar:
                 with file_path.open('wb') as fp:
                     for data in response.iter_content(block_size):
                         progress_bar.update(len(data))
                         fp.write(data)
             if already_exists:
                 if mtime < file_ts:
-                    logger.info(f'file at {url} is newer than {str(file_path)}, overwritten')
+                    logger.info('file at %s is newer than %s, overwritten', str, str(file_path))
                 else:
-                    logger.info(f'{str(file_path)} overwritten')
+                    logger.info('%s overwritten', str(file_path))
             else:
-                logger.info(f'{str(file_path)} written')
+                logger.info('%s written', str(file_path))
             if file_ts:
                 os.utime(file_path, (file_ts, file_ts))
         else:
-            logger.info(f'File {file_path.name} already exists and has not been updated. Skipping because overwrite is off.')
+            logger.info('File %s already exists and has not been updated. Skipping because overwrite is off.',
+                        str(file_path))
 
 
     def check_dirs(self, dirs, url, dir_path: pathlib.Path):
@@ -451,7 +516,7 @@ class EZShare():
         """
         for dirname, dir_url in dirs:
             if dirname != 'System Volume Information':
-                if 'DATALOG' in dir_path.parts and not self.should_process_folder(dirname, 
+                if 'DATALOG' in dir_path.parts and not self.should_process_folder(dirname,
                                                                                   dir_path):
                     continue  # Skip this folder
                 new_dir_path = dir_path / dirname
@@ -494,19 +559,24 @@ class EZShare():
                 self.print(f'Removing profile for {self.connection_id}...')
                 profile_cmd = f'networksetup -removepreferredwirelessnetwork {self.interface_name} "{self.connection_id}"'
                 try:
-                    subprocess.run(profile_cmd, shell=True, 
+                    subprocess.run(profile_cmd, shell=True,
                                    capture_output=True, text=True, check=True)
                 except subprocess.CalledProcessError as e:
-                    raise RuntimeError(f'Error removing network profile for {self.ssid}. Return code: {e.returncode}, error: {e.stderr}')
+                    raise RuntimeError(f'Error removing network profile for {self.ssid}. Return code: {e.returncode}, error: {e.stderr}') from e
             # Turn off the Wi-Fi interface (en0)
-            subprocess.run(f'networksetup -setairportpower {self.interface_name} off', shell=True)
+            subprocess.run(f'networksetup -setairportpower {self.interface_name} off',
+                           shell=True, check=True)
             # Turn it back on
-            subprocess.run(f'networksetup -setairportpower {self.interface_name} on', shell=True)
-        elif self.platform_system == 'Linux' and shutil.which('nmcli'):
+            subprocess.run(f'networksetup -setairportpower {self.interface_name} on',
+                           shell=True, check=True)
+        elif self.platform_system == 'Linux' and self.interface_name is not None:
             if self.connection_id:
                 self.print(f'Disconnecting from {self.ssid}')
                 disconnect_cmd = f'nmcli connection down {self.connection_id}'
-                subprocess.run(disconnect_cmd, shell=True, 
+                subprocess.run(disconnect_cmd, shell=True,
+                               capture_output=True, text=True, check=True)
+                delete_cmd = f'nmcli connection delete {self.connection_id}'
+                subprocess.run(delete_cmd, shell=True,
                                capture_output=True, text=True, check=True)
 
         elif self.platform_system == 'Windows':
@@ -514,18 +584,18 @@ class EZShare():
                 self.print(f'Removing profile for {self.connection_id}...')
                 profile_cmd = f'netsh wlan delete profile "{self.connection_id}"'
                 try:
-                    subprocess.run(profile_cmd, shell=True, 
+                    subprocess.run(profile_cmd, shell=True,
                                    capture_output=True, text=True, check=True)
                 except subprocess.CalledProcessError as e:
-                    raise RuntimeError(f'Error removing network profile for {self.ssid}. Return code: {e.returncode}, error: {e.stderr}')
+                    raise RuntimeError(f'Error removing network profile for {self.ssid}. Return code: {e.returncode}, error: {e.stderr}') from e
             if self.existing_connection_id:
                 self.print(f'Reconnecting to {self.existing_connection_id}...')
                 connect_cmd = f'netsh wlan connect name="{self.existing_connection_id}"'
                 try:
-                    subprocess.run(connect_cmd, shell=True, 
+                    subprocess.run(connect_cmd, shell=True,
                                    capture_output=True, text=True, check=True)
                 except subprocess.CalledProcessError as e:
-                    raise RuntimeError(f'Error reconnecting to original network profile: {self.existing_connection_id}. Return code: {e.returncode}, error: {e.stderr}')
+                    raise RuntimeError(f'Error reconnecting to original network profile: {self.existing_connection_id}. Return code: {e.returncode}, error: {e.stderr}') from e
 
 
 def main():
@@ -548,7 +618,7 @@ def main():
         if config_f.is_file():
             config_path = config_f
             break
-    
+
     config = configparser.ConfigParser()
     # If config file is found, read its contents
     if config_path:
@@ -556,17 +626,18 @@ def main():
         config.read(config_path)
 
     # Set defaults using the config file or the hardcoded defaults
-    path = config.get(f'{APP_NAME}', 'path', 
+    path = config.get(f'{APP_NAME}', 'path',
                       fallback=str(pathlib.Path('~/Documents/CPAP_Data/SD_card').expanduser()))
-    url = config.get(f'{APP_NAME}', 'url', 
+    url = config.get(f'{APP_NAME}', 'url',
                      fallback='http://192.168.4.1/dir?dir=A:')
     start_from = config.get(f'{APP_NAME}', 'start_from', fallback=None)
     day_count = config.getint(f'{APP_NAME}', 'day_count', fallback=None)
-    show_progress = config.getboolean(f'{APP_NAME}', 'show_progress', 
+    show_progress = config.getboolean(f'{APP_NAME}', 'show_progress',
                                       fallback=False)
     verbose = config.getboolean(f'{APP_NAME}', 'verbose', fallback=False)
     overwrite = config.getboolean(f'{APP_NAME}', 'overwrite', fallback=False)
-    ignore = config.get(f'{APP_NAME}', 'ignore', 
+    keep_old = config.getboolean(f'{APP_NAME}', 'keep_old', fallback=False)
+    ignore = config.get(f'{APP_NAME}', 'ignore',
                         fallback='JOURNAL.JNL,ezshare.cfg,System Volume Information')
     ssid = config.get(f'{APP_NAME}', 'ssid', fallback=None)
     psk = config.get(f'{APP_NAME}', 'psk', fallback=None)
@@ -581,37 +652,40 @@ def main():
     Command line arguments will override the configuration file
     """)
     epilog = textwrap.dedent(f"""\
+    NOTE: 
     Example:
         {APP_NAME} --ssid ezShare --psk 88888888 --show_progress
     """)
-    parser = argparse.ArgumentParser(prog=APP_NAME, description=description, 
-                                     epilog=epilog, 
+    parser = argparse.ArgumentParser(prog=APP_NAME, description=description,
+                                     epilog=epilog,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--path', type=str, 
+    parser.add_argument('--path', type=str,
                         help=f'set destination path, defaults to {path}')
-    parser.add_argument('--url', type=str, 
+    parser.add_argument('--url', type=str,
                         help=f'set source URL, Defaults to {url}')
-    parser.add_argument('--start_from', type=str, 
+    parser.add_argument('--start_from', type=str,
                         help=f'start from date in YYYYMMDD format, deaults to {start_from}; this will override day_count if set')
-    parser.add_argument('--day_count', '-n', type=int, 
+    parser.add_argument('--day_count', '-n', type=int,
                         help=f'number of days to sync, defaults to {day_count}; if both start_from and day_count are unset all files will be synced')
-    parser.add_argument('--show_progress', action='store_true', 
+    parser.add_argument('--show_progress', action='store_true',
                         help=f'show progress, defaults to {show_progress}')
-    parser.add_argument('--verbose', '-v', action='store_true', 
+    parser.add_argument('--verbose', '-v', action='store_true',
                         help=f'verbose output, defaults to {verbose}')
-    parser.add_argument('--debug', '-vvv', action='store_true', 
+    parser.add_argument('--debug', '-vvv', action='store_true',
                         help=argparse.SUPPRESS)
-    parser.add_argument('--overwrite', action='store_true', 
-                        help=f'overwrite existing files, defaults to {overwrite}')
-    parser.add_argument('--ignore', type=str, 
+    parser.add_argument('--overwrite', action='store_true',
+                        help=f'force overwriting existing files, defaults to {overwrite}')
+    parser.add_argument('--keep_old', action='store_true',
+                        help=f'do not overwrite even if newer version is available, defaults to {overwrite}')
+    parser.add_argument('--ignore', type=str,
                         help=f'case insensitive comma separated list (no spaces) of files to ignore, defaults to {ignore}')
-    parser.add_argument('--ssid', type=str, 
+    parser.add_argument('--ssid', type=str,
                         help=f'set network SSID; WiFi connection will be attempted if set, defaults to {ssid}')
-    parser.add_argument('--psk', type=str, 
-                        help=f'set network pass phrase, defaults to None')
-    parser.add_argument('--retries', type=int, 
+    parser.add_argument('--psk', type=str,
+                        help='set network pass phrase, defaults to None')
+    parser.add_argument('--retries', type=int,
                         help=f'set number of retries for failed downloads, defaults to {retries}')
-    parser.add_argument('--version', action='version', 
+    parser.add_argument('--version', action='version',
                         version=f'{APP_NAME} {VERSION}')
     args = parser.parse_args()
 
@@ -629,6 +703,8 @@ def main():
         verbose = True
     if args.overwrite:
         overwrite = True
+    if args.keep_old:
+        keep_old = True
     if args.ignore:
         ignore = args.ignore
     if args.ssid:
@@ -637,23 +713,23 @@ def main():
         psk = args.psk
     if args.retries:
         retries = args.retries
-    
+
     ignore_list = ignore.split(',')
 
     if start_from:
         try:
             start_ts = datetime.datetime.strptime(start_from, '%Y%m%d')
         except ValueError as e:
-            raise ValueError(f'Invalid date format provided in \'start_from\'. Please use YYYYMMDD. Error: {e}')
+            raise ValueError(f'Invalid date format provided in \'start_from\'. Please use YYYYMMDD. Error: {e}') from e
     elif day_count:
         start_ts = datetime.datetime.now() - datetime.timedelta(days=day_count)
     else:
         start_ts = None
-            
-    ezshare = EZShare(path, url, start_ts, show_progress, verbose, overwrite, 
-                      ssid, psk, ignore_list, retries, CONNECTION_DELAY, 
+
+    ezshare = EZShare(path, url, start_ts, show_progress, verbose, overwrite, keep_old,
+                      ssid, psk, ignore_list, retries, CONNECTION_DELAY,
                       args.debug)
-    
+
     try:
         ezshare.run()
     except Exception as e:
