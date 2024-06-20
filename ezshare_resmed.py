@@ -23,6 +23,7 @@ from urllib3.util import retry
 
 
 APP_NAME = pathlib.Path(__file__).stem
+VERSION = 'v1.0.0-beta'
 logger = logging.getLogger(APP_NAME)
 
 
@@ -63,6 +64,7 @@ class EZShare():
                  ignore, retries=5, connection_delay=5, debug=False):
         """
         Class constructor for the EZShare class
+
         Args:
             path (str): Local path to store the downloaded files
             url (str): URL of the EZShare SD card
@@ -604,11 +606,13 @@ def main():
     parser.add_argument('--ignore', type=str, 
                         help=f'case insensitive comma separated list (no spaces) of files to ignore, defaults to {ignore}')
     parser.add_argument('--ssid', type=str, 
-                        help=f'set network SSID; if set automaticconnection to the WiFi network will be attempted, defaults to {ssid}')
+                        help=f'set network SSID; WiFi connection will be attempted if set, defaults to {ssid}')
     parser.add_argument('--psk', type=str, 
                         help=f'set network pass phrase, defaults to None')
     parser.add_argument('--retries', type=int, 
                         help=f'set number of retries for failed downloads, defaults to {retries}')
+    parser.add_argument('--version', action='version', 
+                        version=f'{APP_NAME} {VERSION}')
     args = parser.parse_args()
 
     if args.path:
