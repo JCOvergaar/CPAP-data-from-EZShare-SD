@@ -53,7 +53,9 @@ mkdir -p $HOME/.local/bin
 mkdir -p $HOME/.config/ezshare_resmed
 cp ezshare_resmed $HOME/.local/bin
 cp ezshare_resmed.py $HOME/.local/bin
-cp ezshare_resmed_default.ini $HOME/.config/ezshare_resmed/config.ini
+if ! [ -f "$HOME/.config/ezshare_resmed/config.ini" ]; then
+    cp ezshare_resmed_default.ini $HOME/.config/ezshare_resmed/config.ini
+fi
 
 chmod +x $HOME/.local/bin/ezshare_resmed
 chmod +x $HOME/.local/bin/ezshare_resmed.py
@@ -75,6 +77,6 @@ if ! [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
 fi
 
 echo -e "\nInstallation complete"
-echo "Default configuration file saved at $HOME/.config/ezshare_resmed/config.ini"
+echo "Default configuration file is $HOME/.config/ezshare_resmed/config.ini"
 echo "Run with:"
 echo -e "\nezshare_resmed"

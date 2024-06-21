@@ -20,7 +20,9 @@ mkdir %USERPROFILE%\.local\bin
 mkdir %USERPROFILE%\.config\ezshare_resmed
 copy ezshare_resmed.cmd %USERPROFILE%\.local\bin
 copy ezshare_resmed.py %USERPROFILE%\.local\bin
-copy ezshare_resmed_default.ini %USERPROFILE%\.config\ezshare_resmed\config.ini
+IF NOT EXIST "%USERPROFILE%\.config\ezshare_resmed\config.ini" (
+    copy ezshare_resmed_default.ini %USERPROFILE%\.config\ezshare_resmed\config.ini
+)
 
 SET script_dir=%~dp0
 SET ps_script_path=%script_dir%local_bin_path.ps1
@@ -28,7 +30,7 @@ PowerShell -NoProfile -ExecutionPolicy Bypass -Command "& '%ps_script_path%'";
 
 echo.
 echo Installation complete
-echo Default configuration file saved at %USERPROFILE%\.config\ezshare_resmed\config.ini
+echo Default configuration file is %USERPROFILE%\.config\ezshare_resmed\config.ini
 echo Run with:
 echo.
 echo ezshare_resmed

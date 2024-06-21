@@ -17,7 +17,7 @@ The program runs on Python 3, and requires dependencies to be installed. Python 
 | `--show_progress` | show progress, defaults to True |
 | `--verbose`, `-v` | verbose output, defaults to False |
 | `--overwrite` | force overwriting existing files, defaults to False |
-| `--keep_old` | force overwriting existing files, defaults to False |
+| `--keep_old` | do not overwrite even if newer version is available, defaults to False |
 | `--ignore IGNORE` | case insensitive comma separated list (no spaces) of files to ignore, defaults to JOURNAL.JNL,ezshare.cfg,System Volume Information |
 | `--ssid SSID` | set network SSID; WiFi connection will be attempted if set, defaults to ez Share |
 | `--psk PSK` | set network pass phrase, defaults to 88888888 |
