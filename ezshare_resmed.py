@@ -23,7 +23,7 @@ from urllib3.util import retry
 
 
 APP_NAME = pathlib.Path(__file__).stem
-VERSION = 'v1.0.0-beta'
+VERSION = 'v1.0.1-beta'
 logger = logging.getLogger(APP_NAME)
 
 
