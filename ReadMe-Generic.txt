@@ -17,14 +17,16 @@ Make sure to check the option to add Python to PATH during the installation proc
 
 Open Terminal (Mac)/ Command Prompt (Windows) and run the following command to install the additional required libraries:
 
-pip install requests beautifulsoup4
+cd CPAP-data-from-EZShare-SD
+pip install -r requirements.txt
 
 ### Alternate MacOS instructions using HomeBrew (run commands in Terminal):
 Skip first line of HomeBrew is already installed.
 
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 brew install python
-pip install requests beautifulsoup4
+cd CPAP-data-from-EZShare-SD
+pip install -r requirements.txt
 
 #################################################################################################
 Data Location:
@@ -32,7 +34,7 @@ Data Location:
 
 The default code (os.path.join etc) will place the file in the path below. 
 Windows:      C:\Users\MY_USERNAME\Documents\CPAP_Data
-MacOS:        /home/MY_USERNAME/Documents/CPAP_Data
+MacOS:        /Users/MY_USERNAME/Documents/CPAP_Data
 Linux et al:  /home/MY_USERNAME/Documents/CPAP_Data
 
 You may need to create a directory named CPAP_Data in your Documents folder. 
