@@ -257,6 +257,7 @@ class EZShare():
                                             capture_output=True, text=True,
                                             check=True)
         except subprocess.CalledProcessError as e:
+            self.connection_id = self.ssid
             raise RuntimeError(f'Error connecting to {self.ssid}. Return code: {e.returncode}, error: {e.stderr}') from e
 
         # Regular expression pattern to match the string after "activated with"
@@ -311,9 +312,15 @@ class EZShare():
         self.connection_id = connection_id
 
     def wifi_connected(self):
+        """
+        Checks if WiFi is connected
+
+        Returns:
+            bool: True if connected to specified WiFi network, False if not
+        """
         if self.connected:
             return True
-        elif self.platform_system == 'Windows':
+        if self.platform_system == 'Windows':
             existing_profile_cmd = 'netsh wlan show interfaces'
             try:
                 current_profile_result = subprocess.run(existing_profile_cmd,
@@ -326,10 +333,10 @@ class EZShare():
                 if line.strip().startswith('Profile'):
                     if line.split(':')[1].strip() == self.connection_id:
                         self.connected = True
-                        return self.connected
+                        return True
         else:
             return False
-    
+
     def has_network_manager(self):
         """
         Checks if nmcli is present on the system and if it can manage the WiFi network
@@ -395,10 +402,10 @@ class EZShare():
                 self.connect_to_wifi()
             except RuntimeError as e:
                 logger.warning('Failed to connect to %s. Error: %s', self.ssid, str(e))
-            self.print('Waiting a few seconds for connection to establish...')
-            time.sleep(self.connection_delay)
+            else:
+                self.print('Waiting a few seconds for connection to establish...')
+                time.sleep(self.connection_delay)
 
-        
         if not self.wifi_connected():
             if sys.__stdin__.isatty():
                 response = input('Unable to connect automatically, please connect manually and press "C" to continue or any other key to cancel: ')
@@ -628,12 +635,14 @@ class EZShare():
                            shell=True, check=True)
 
         elif self.platform_system == 'Linux' and self.interface_name is not None:
-            if self.connection_id:
+            if self.connected:
                 self.print(f'Disconnecting from {self.ssid}')
                 disconnect_cmd = f'nmcli connection down {self.connection_id}'
                 subprocess.run(disconnect_cmd, shell=True,
                                capture_output=True, text=True, check=True)
-                delete_cmd = f'nmcli connection delete {self.connection_id}'
+            if self.connection_id:
+                self.print(f'Removing profile for {self.connection_id}...')
+                delete_cmd = f'nmcli connection delete "{self.connection_id}"'
                 subprocess.run(delete_cmd, shell=True,
                                capture_output=True, text=True, check=True)
 
@@ -790,7 +799,7 @@ def main():
 
     try:
         ezshare.run()
-    except Exception or SystemExit as e:
+    except BaseException as e:
         raise e
     finally:
         ezshare.disconnect_from_wifi()
