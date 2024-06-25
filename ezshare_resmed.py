@@ -23,7 +23,7 @@ from urllib3.util import retry
 
 
 APP_NAME = pathlib.Path(__file__).stem
-VERSION = 'v1.0.1-beta'
+VERSION = 'v1.0.2-beta'
 logger = logging.getLogger(APP_NAME)
 
 
@@ -516,7 +516,7 @@ class EZShare():
             absolute_file_url = urllib.parse.urljoin(url, f'download?{file_url}')
             self.download_file(absolute_file_url, local_path, file_ts=file_ts)
 
-    def download_file(self, url, file_path: pathlib.Path, file_ts=None):
+    def download_file(self, url, file_path: pathlib.Path, file_ts: float):
         """
         Grab a single file from the SD card.
     
@@ -524,16 +524,23 @@ class EZShare():
             url (str): url to the file to download
             file_path (pathlib.Path): Path of the file
             file_ts (float): Modification time of the file in as a POSIX 
-            timestamp, default None
+            timestamp
         
         Raises:
             SystemExit: When the download fails
         """
         mtime = 0
         already_exists = file_path.is_file()
+        if self.start_time.timestamp() > file_ts:
+            logger.debug('File at %s is older than specified start time, skipping',
+                         url)
+            return
+        if already_exists and self.keep_old:
+            logger.info('File %s already exists and keep_old is set, skipping',str(file_path))
+            return
         if already_exists:
             mtime = file_path.stat().st_mtime
-        if (self.overwrite or mtime < file_ts) and not (already_exists and self.keep_old):
+        if self.overwrite or mtime < file_ts:
             logger.debug('Downloading %s from %s', str(file_path), url)
             response = self.session.get(url, stream=True)
             response.raise_for_status()
@@ -557,9 +564,11 @@ class EZShare():
                 logger.info('%s written', str(file_path))
             if file_ts:
                 os.utime(file_path, (file_ts, file_ts))
+            return
         else:
             logger.info('File %s already exists and has not been updated. Skipping because overwrite is off.',
                         str(file_path))
+            return
 
 
     def check_dirs(self, dirs, url, dir_path: pathlib.Path):
@@ -784,7 +793,7 @@ def main():
     elif day_count:
         start_ts = datetime.datetime.now() - datetime.timedelta(days=day_count)
     else:
-        start_ts = None
+        start_ts = datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
 
     ezshare = EZShare(path, url, start_ts, show_progress, verbose, overwrite,
                       keep_old, ssid, psk, ignore_list, retries,
