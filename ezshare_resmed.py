@@ -793,7 +793,7 @@ def main():
     elif day_count:
         start_ts = datetime.datetime.now() - datetime.timedelta(days=day_count)
     else:
-        start_ts = None
+        start_ts = datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
 
     ezshare = EZShare(path, url, start_ts, show_progress, verbose, overwrite,
                       keep_old, ssid, psk, ignore_list, retries,
